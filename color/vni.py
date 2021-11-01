@@ -1,54 +1,13 @@
 '''
-Copyright (c) 2019 Pinball Power
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+Parser for VNI files
+Derived from https://github.com/freezy/dmd-extensions/
 '''
 
 import struct
 import logging
 
-def readByte(file):
-    res, = struct.unpack("B",file.read(1));
-    return res
-
-def readInt16(file):
-    res, = struct.unpack(">h",file.read(2));
-    return res
-
-def readUInt16(file):
-    res, = struct.unpack(">H",file.read(2));
-    return res
-
-def readUInt32(file):
-    res, = struct.unpack(">I",file.read(4));
-    return res
-
-def readString(file, length):
-    return file.read(length).decode("UTF-8")
-
-def reverseByte(b):
-    res = ((b & 0x01) << 7) | ((b & 0x02) << 6) | ((b & 0x04) << 5) | ((b & 0x08) << 4) | \
-          ((b & 0x10) << 3) | ((b & 0x20) << 2) | ((b & 0x40) << 1) | ((b & 0x80) << 1) 
-    return res
-
-def reverseBytes(b):
-    return bytearray(b).reverse()
+from tools.io import readByte, readInt16, readString, readUInt16, readUInt32
+from tools.data import reverseBytes
 
 class VNIException(Exception):
     
@@ -155,15 +114,17 @@ class VNIAnimationFrame():
                 logging.debug("VNI %s: animation, got plane ",vni.filename)
  
     
-class VNIAnimation(object):
+class VNIAnimation():
     
     def __init__(self, vni):
+        
+        self.transitionFrom = 0
         
         namelen = readInt16(vni.file)
         if namelen > 0:
             self.name=readString(vni.file, namelen)
         else:
-            self.name="<undefined>"
+            self.name="<undef>"
             
         logging.debug("VNI %s: animation %s: ", vni.filename, self.name)
         
@@ -227,39 +188,17 @@ class VNIAnimation(object):
             
         self.frames = [];
         self.animationduration = 0;
-        for _i in range(0, self.numFrames):
+        for i in range(0, self.numFrames):
             frame = VNIAnimationFrame(vni)
             self.frames.append(frame)
-            self.animationduration += frame.delay
-#                 if (Frames[i].Mask != null && TransitionFrom == 0) {
-#                     TransitionFrom = i;
-#                 }
-#                 AnimationDuration += Frames[i].Delay;
-#             }
+            if (frame.mask is not None) and (self.transitionFrom == 0):
+                self.transitionFrom = i
+                self.animationduration += frame.delay
             
             
     def __str__(self):
         return self.name
 
-    
-
-
-
-
-
-# 
-#             Logger.Debug("VNI[{3}] Reading {0} frame{1} for animation \"{2}\"...", numFrames, numFrames == 1 ? "" : "s", Name, reader.BaseStream.Position);
-#             Frames = new AnimationFrame[numFrames];
-#             AnimationDuration = 0;
-#             for (var i = 0; i < numFrames; i++) {
-#                 Frames[i] = new VniAnimationFrame(reader, fileVersion, AnimationDuration);
-#                 if (Frames[i].Mask != null && TransitionFrom == 0) {
-#                     TransitionFrom = i;
-#                 }
-#                 AnimationDuration += Frames[i].Delay;
-#             }
-#         }
-# 
     
         
         
